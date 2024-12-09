@@ -39,6 +39,9 @@ float motor1Speed, motor2Speed, motor3Speed, motor4Speed;
 const int SDA_PIN = 0;  // SDA (Data)
 const int SCL_PIN = 1;  // SCL (Clock)
 
+// Control variables for SBUS data
+float xPWM, yPWM, zPWM, yawPWM;  // Store received PWM values (Roll, Pitch, Throttle, Yaw)
+
 void setup() {
   pinMode(motor1Pin, OUTPUT);
   pinMode(motor2Pin, OUTPUT);
@@ -47,7 +50,7 @@ void setup() {
 
   // Initialize I2C
   Wire.begin(SDA_PIN, SCL_PIN);  // Use custom SDA/SCL pins
-  Serial.begin(115200);
+  Serial.begin(115200);           // Start serial communication for data input
 
   // Initialize MPU6050
   mpu.initialize();
@@ -122,6 +125,17 @@ float kalmanFilterUpdate(KalmanFilter &kf, float gyroRate, float accelAngle) {
   return kf.x_hat[0];
 }
 
+// Function to receive PWM control values via Serial
+void receiveControlInput() {
+  if (Serial.available() >= 4 * sizeof(float)) {
+    // Read PWM values for Roll, Pitch, Throttle (Z), and Yaw
+    Serial.readBytes((char *)&xPWM, sizeof(float));
+    Serial.readBytes((char *)&yPWM, sizeof(float));
+    Serial.readBytes((char *)&zPWM, sizeof(float));
+    Serial.readBytes((char *)&yawPWM, sizeof(float));
+  }
+}
+
 // Function to calculate PID outputs and control motors
 void controlMotors() {
   // Calculate PID outputs for roll, pitch, and yaw
@@ -157,6 +171,7 @@ void controlMotors() {
 }
 
 void loop() {
-  readSensorData();
-  controlMotors();
+  receiveControlInput();  // Receive control input (PWM values)
+  readSensorData();       // Read sensor data and update Kalman filters
+  controlMotors();        // Control motors based on PID outputs
 }
